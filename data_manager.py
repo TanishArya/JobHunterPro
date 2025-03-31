@@ -9,6 +9,12 @@ SAVED_JOBS_PATH = "saved_jobs.json"
 APPLIED_JOBS_PATH = "applied_jobs.json"
 ALERTS_PATH = "job_alerts.json"
 
+def custom_json_encoder(obj):
+    """Custom JSON encoder to handle non-serializable objects."""
+    if isinstance(obj, datetime.datetime):
+        return obj.isoformat()  # Convert datetime to ISO 8601 string
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
 def load_jobs():
     """
     Load the current job listings from storage
@@ -225,7 +231,7 @@ def add_job_to_applied(job):
         
         # Save to file
         with open(APPLIED_JOBS_PATH, 'w') as f:
-            json.dump(applied_jobs, f)
+            json.dump(applied_jobs, f, default=custom_json_encoder)
         
         # Update session state if it exists
         import streamlit as st
