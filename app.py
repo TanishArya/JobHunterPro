@@ -2,10 +2,10 @@ import streamlit as st
 import pandas as pd
 import datetime
 from scrapers import scrape_indeed, scrape_linkedin
-from database import (
+from data_manager import (
     load_jobs, save_jobs, load_saved_jobs, save_job_to_saved,
     remove_job_from_saved, load_applied_jobs, add_job_to_applied,
-    load_alerts, save_alert, delete_alert, update_alert_notification
+    load_alerts, save_alert, delete_alert
 )
 from notification import send_job_alert_email
 import schedule
@@ -56,30 +56,17 @@ def check_job_alerts():
         
     for alert in alerts:
         matching_jobs = []
-        job_posted_after_last_check = False
-        
-        # Get the last notification time or default to created_date
-        last_check_time = alert.get('last_notified', alert['created_date'])
-        
         for index, job in current_jobs.iterrows():
-            # Check if job matches alert criteria
             keywords_match = all(kw.lower() in job['title'].lower() or kw.lower() in job['description'].lower() 
                                for kw in alert['keywords'])
             location_match = True if not alert['location'] else alert['location'].lower() in job['location'].lower()
             job_type_match = True if not alert['job_type'] else alert['job_type'].lower() in job['job_type'].lower()
             
-            # Check if job was posted after the last notification was sent
-            if job['date_posted'] >= last_check_time:
-                job_posted_after_last_check = True
-            
-            if keywords_match and location_match and job_type_match and job['date_posted'] >= last_check_time:
+            if keywords_match and location_match and job_type_match and job['date_posted'] >= alert['created_date']:
                 matching_jobs.append(job.to_dict())
         
-        # Only send notification if there are matching jobs posted after the last check
-        if matching_jobs and alert['email'] and job_posted_after_last_check:
+        if matching_jobs and alert['email']:
             send_job_alert_email(alert['email'], alert['name'], matching_jobs)
-            # Update the last notification timestamp
-            update_alert_notification(alert['id'])
 
 # Schedule alert checking to run every hour
 schedule.every(1).hours.do(check_job_alerts)
